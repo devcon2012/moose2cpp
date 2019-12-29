@@ -1,1 +1,0 @@
-[{"kind":2,"containerName":"","line":2,"name":"strict"},{"name":"warnings","kind":2,"containerName":"","line":3},{"line":4,"containerName":"Moose","kind":2,"name":"Role"},{"name":"requires","line":6,"kind":12}]

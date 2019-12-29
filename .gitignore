@@ -1,0 +1,10 @@
+blib
+.vscode
+*~
+MYMETA*
+Makefile
+Makefile.old
+MANIFEST.new
+pm_to_blib
+Makefile.old
+*.log
