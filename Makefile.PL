@@ -30,6 +30,8 @@ sub UpdateManifest
     push @manifest, 'Makefile.PL' ;
     push @manifest, 'Changes' ;
     push @manifest, '.gitignore' ;
+    push @manifest, 'doxy/.gitignore' ;
+    push @manifest, 'doxy/Doxyfile' ;
 
 
     find ( sub { push @manifest, $File::Find::name if ( /\.p[lm]$/ ) ; },
@@ -46,7 +48,16 @@ sub UpdateManifest
     print $fh join ("\n", sort { fc($a) cmp fc($b) } @manifest);
     print $fh "\n";
     close $fh ;
-    system ("echo 'MANIFEST changes:' ; diff MANIFEST MANIFEST.new") ;
+    my $ret = system ("diff MANIFEST MANIFEST.new") ;
+    if ( $ret )
+        {
+        print "!!!! Manifest changed - review !!!!\n" ;
+        }
+    else
+        {
+        print "No changes to manifest\n" ;
+        unlink "MANIFEST.new" ;
+        }
     }
 
 sub CritiqueModules

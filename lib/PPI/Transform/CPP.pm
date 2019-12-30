@@ -16,8 +16,7 @@ use File::Temp qw/ tempfile /;
 use PPI::Transform::CPP::Class ;
 
 
-our $VERSION  = '0.1' ;
-our $ABSTRACT = 'Abstract' ;
+our $VERSION  = '0.5' ;
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Members
@@ -82,9 +81,9 @@ sub write_classes
 # -----------------------------------------------------------------------------
 # package2class - transform PPI package to CPP Class
 #
-# in    <package> 
+# in    <package>   a PPI::Statement::Package 
 #
-# ret   <class>
+# ret   <class>     PPI::Transform::CPP::Class representing this package as cpp
 #
 sub package2class
     {
@@ -172,7 +171,7 @@ sub transform
         last if ( ! $package ) ;
         }
 
-    $classes -> [0] -> write( $out ) 
+    $self -> write_classes ( $out )
         if ( $out ) ;
 
     return ;

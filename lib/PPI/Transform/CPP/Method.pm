@@ -95,6 +95,7 @@ sub _consolidate_arguments
         {
         if ( /^#\s+\Q$name\E\s*\-(.+)/ )
             {
+            $self -> set_undocumented ( 0 ) ;
             $d .= $1 ;
             }
         elsif ( /^\#\s+(.+)/ )
@@ -104,117 +105,98 @@ sub _consolidate_arguments
         }
     $self -> doku ( $d ) ;
 
+    my %optional ;
     my %type ;
     my $indent = 0 ;
     my %in_vars ;
     my $last ;
     foreach ( @$in )
         {
-        if ( /^#(\s+in\s+)(.)([^\s+]+)(\s*)(.*)/ )
-            {
-            $in_vars{$3} = $5 || '' ;
-            $type{$3} = $2 ;
-            $indent = length ($1) + length ($2) + length ($3) + length ($4) - 3 ;
-            $last = $3 ;
+        my ($ws, $dmy, $opt1, $type, $name, $opt2, $ws2, $desc) 
+            = /^\#(\s+(in\s+)?)(\[?)([\!\$\%\@\<]?)(\w+)\>?(\]?)(\s*)(.*)/ ;
+        $dmy //= '' ;
+        if ( $type )
+            {           
+            # 0 initial whitespace, possibly with 'in'
+            # 1
+            # 2 maybe [
+            # 3 maybe one of !$%@<
+            # 4 variable name
+            # 5 maybe ]
+            # 6 whitespace after variable
+            # 7 variable desc
+            $in_vars{$name}     = $desc || '' ;
+            $type{$name}        = $type ;
+            $optional{$name}    = 1 if ($opt1 && $opt2) ;
+            $indent             = length($ws.$dmy.$opt1.$type.$name.$opt2.$ws) - 3 ;
+            $last               = $name ;
             }
-        elsif ( /^#(\s+)(.)([^\s+]+)(\s+)(.+)/ )
+        else
             {
-            die ("bad in $_") if ( ! $indent ) ;
-            if ( length($1) > $indent ) # continuation of previous line ?
-                {
-                $in_vars{$last} .= " $2$3$4$5" ;            
-                }
-            else
-                {
-                $in_vars{$3} = $5 || '' ;
-                $type{$3} = $2 ;
-                $indent = length ($1) + length ($2) + length ($3) + length ($4) - 3 ;
-                $last = $3 ;
-                }
+            die ("bad input $_") if ( ! $indent || ! $last ) ;
+            $in_vars{$last}     .= $desc || '' ;
             }
         }
 
-    $indent = 0 ;
+    $indent = 0 ; 
+    $last = '';
     my %out_vars ;
     foreach ( @$out )
         {
-        if ( /^#(\s+out\s+)(.)([^\s+]+)(\s*)(.*)/ )
-            {
-            $out_vars{$3} = $5 || '' ;
-            $type{$3} = $2 ;
-            $indent = length ($1) + length ($2) + length ($3) + length ($4) - 3 ;
-            $last = $3 ;
+        my ($ws, $dmy, $opt1, $type, $name, $opt2, $ws2, $desc) 
+            = /^\#(\s+(out\s+)?)(\[?)([\!\$\%\@\<]?)(\w+)\>?(\]?)(\s*)(.*)/ ;
+        if ( $type )
+            {           
+            $out_vars{$name}    = $desc || '' ;
+            $type{$name}        = $type ;
+            $optional{$name}    = 1 if ($opt1 && $opt2) ;
+            $indent             = length($ws.$dmy.$opt1.$type.$name.$opt2.$ws) - 3 ;
+            $last               = $name ;
             }
-        elsif ( /^#(\s+)(.)([^\s+]+)(\s+)(.+)/ )
+        else
             {
-            die ("bad out $_") if ( ! $indent ) ;
-            if ( length($1) > $indent ) # continuation of previous line ?
-                {
-                $out_vars{$last} = " $2$3$4$5" ;            
-                }
-            else
-                {
-                $out_vars{$3} = $5 || '' ;
-                $type{$3} = $2 ;
-                $indent = length ($1) + length ($2) + length ($3) - 3 ;
-                $last = $2 ;
-                }
+            die ("bad input $_") if ( ! $indent || ! $last ) ;
+            $out_vars{$last}     .= $desc || '' ;
             }
         }
 
     my %ret_vars ;
+    $last = undef ;
     foreach ( @$ret )
         {
-        if ( /^#(\s+ret\s+)(\(?)(.)([^\s\(]+)(\)?)(\s+)(.+)/ )
+        my ($wsl, $dmyl, $lst1, $list, $lst2, $wsl2, $ldesc) 
+            = /^\#(\s+(ret\s+)?)(\()(\S+)(\))(\s*)(.*)/ ;
+
+        my ($ws, $dmy, $type, $name, $ws2, $ndesc) 
+            = /^\#(\s+(ret\s+)?)([\!\$\%\@\<]?)(\w+)\>?(\s+)(.*)/ ;
+
+        my ($wsc, $cont) 
+            = /^\#(\s+)(\S+.*)/ ;
+        $dmy //= '' ;
+
+        if ( $type && $name )
             {
-            print STDERR "A: >$1-$2-$3-$4-$5-$6-$7<\n";
-            if ($2) # list case
+            $ret_vars{'SCALAR'}  = $name ;
+            $ret_vars{'TYPE'}    = $type ;
+            $indent = length ( $ws.$dmy.$type.$name.$ws2 ) - 3 ;
+            $self -> add_return_type_doku ( $ndesc ) ;
+            $last = 'SCALAR' ;
+            }
+        elsif ( $list )
+            {
+            $ret_vars{'LIST'} = $list ;
+            $indent = length ( $ws.$dmyl.$lst1.$list.$lst2.$wsl2 ) - 3 ;
+            $self -> add_return_type_doku ( $ldesc ) ;
+            $last = 'LIST' ;
+            }
+        else
+            {
+            if ( length($ws) > $indent && $last ) # continuation of previous line ?
                 {
-                print STDERR "A, initial list\n" ;
-                $ret_vars{'LIST'} = $4 ;
-                $indent = length ($1) + length ($2) + length ($3) + length ($4) + length ($5) + length ($6) - 3 ;
-                my $d = "list context returns $2$3$4$5$6 $7";
-                $self -> add_return_type_doku ( $d ) ;
-                $last = 'LIST' ;
-                }
-            else
-                {
-                print STDERR "A, initial scalar\n" ;
-                $ret_vars{'SCALAR'} = $4 ;
-                $ret_vars{'TYPE'} = $3 ;
-                $indent = length ($1) + length ($2) + length ($3) + length ($4) + length ($5) + length ($6) - 3 ;
-                $self -> add_return_type_doku ( $7 ) ;
-                $last = 'SCALAR' ;
+                $self -> add_return_type_doku ( " $cont" ) ;            
                 }
             }
-        elsif  ( /^#(\s+)(\(?)(.)([^\s\(]+)(\)?)(\s+)(.+)/ )
-            {
-            print STDERR "B: >$1-$2-$3-$4-$5-$6-$7<\n";
-            if ( length($1) > $indent ) # continuation of previous line ?
-                {
-                print STDERR "B, continuation\n" ;
-                $self -> add_return_type_doku ( " $2$3$4$5$6$7" ) ;            
-                }
-            elsif ($2) # list case
-                {
-                print STDERR "B, list\n" ;
-                $ret_vars{'LIST'} = $4 ;
-                $indent = length ($1) + length ($2) + length ($3) + length ($4) + length ($5) + length ($6) - 3 ;
-                my $d = "list context returns $2$3$4$5$6 $7";
-                $self -> add_return_type_doku ( $d ) ;
-                $last = 'LIST' ;
-                }
-            else
-                {
-                print STDERR "B, scalar\n" ;
-                $ret_vars{'SCALAR'} = $4 ;
-                $ret_vars{'TYPE'} = $3 ;
-                $indent = length ($1) + length ($2) + length ($3) + length ($4) + length ($5) + length ($6) - 3 ;
-                $self -> add_return_type_doku ( $7 ) ;
-                $last = 'SCALAR' ;
-                }
-            }
-        print STDERR Dumper (\%ret_vars) ;
+        #print STDERR Dumper (\%ret_vars) ;
         }
 
     if ( $ret_vars{'TYPE'} )
@@ -223,6 +205,9 @@ sub _consolidate_arguments
             {
             $self -> set_type ( $ret_vars{'TYPE'} );
             $self -> type ( $self -> type . '_OR_LIST' ) ;
+            my $list = $ret_vars{'LIST'};
+            my $d = " (list context returns $list)";
+            $self -> add_return_type_doku ( $d ) ;
             }
         else
             {
@@ -231,7 +216,7 @@ sub _consolidate_arguments
         }
     elsif ( $ret_vars{'LIST'} )
         {
-        $self -> set_type ( 'LIST' ) ;
+        $self -> type ( 'LIST' ) ;
         }
     else
         {
@@ -246,6 +231,7 @@ sub _consolidate_arguments
             my $n = $arg -> name ;
             $arg -> set_type ( $type{$n} ) ;
             $arg -> is_const ( 0 ) if (exists $out_vars{$n}) ;
+            $arg -> is_optional ( 1 ) if (exists $optional{$n}) ;
             $arg -> doku_add ( $in_vars{$n} ) if (exists $in_vars{$n}) ;
             $arg -> doku_add ( $out_vars{$n} ) if (exists $out_vars{$n}) ;
             }
@@ -270,7 +256,7 @@ sub parse_plaintext_doku
     my $plain = $self -> plaintext_doku ;
     my ( @description, @in, @out, @ret ) ;
 
-    my $state = 'DESC' ;
+    my $state = 'DESCP' ;
     my $h = { 
             DESC => \@description,
             IN   => \@in,
@@ -282,12 +268,15 @@ sub parse_plaintext_doku
         {
         next if ( ! $_ ) ;
         next if ( /-----------------/ ) ;
-        $state = 'IN'  if ( /^\#\s+in\s+/  ) ;
-        $state = 'OUT' if ( /^\#\s+out\s+/ ) ;
-        $state = 'RET' if ( /^\#\s+ret\s+/ ) ;
+        next if ( /~~~~~~~~~~~~~~~~~/ ) ;
+        $state = 'DESC'  if ( /^\#\s*\S+/ && ( $state eq 'DESCP')  ) ;
+        $state = 'DESC2' if ( /^\#\s*$/ && ( $state eq 'DESC')  ) ;
+        $state = 'IN'    if ( /^\#\s+in\s+[\<\[\!\$\%\@]/  && ( $state eq 'DESC2')  ) ;
+        $state = 'OUT'   if ( /^\#\s+out\s+[\<\[\!\$\%\@]/ && ( $state eq 'IN' || $state eq 'DESC2')  ) ;
+        $state = 'RET'   if ( /^\#\s+ret\s+[\<\(\[\!\$\%\@]/ ) ;
         push @{$h->{$state}}, $_ ;
         }
-
+    #print STDERR Dumper ($h) ;
     return ( \@description, \@in, \@out, \@ret ) ; 
     }
 
@@ -317,11 +306,11 @@ sub as_cpp
         push @alist, $arg -> as_cpp ;
         push @dlist, ' @var ' . $arg->name . ' ' . $arg -> doku . "\n" ;
         }
-    my $alist = (join ',',   @alist) || '';
-    my $dlist = ( join $tab . '///', @dlist) || '';
+    my $alist = ( join ',',          @alist ) || '';
+    my $dlist = ( join $tab . '///', @dlist ) || '';
 
 
-    $ret .= join '', @{$self -> plaintext_doku} ;
+    #$ret .= join ' ', @{$self -> plaintext_doku} ;
 
     my $doku = $self -> doku ;
     $ret .= $tab . "/// \@brief $doku\n" if ( $doku ) ;
@@ -331,8 +320,8 @@ sub as_cpp
     $doku = $self -> return_type_doku ;
     $ret .= $tab . "/// \@return $doku\n"  if ( $doku ) ;
 
-    $ret .= $tab . '///' . $dlist . "\n" ;
-    $ret .= $tab . $self -> type . ' ' . $self -> name . "($alist);\n" ;
+    $ret .= $tab . '///' . $dlist if ($dlist) ;
+    $ret .= $tab . $self -> type . ' ' . $self -> name . "($alist);\n\n" ;
 
     return $ret ;
     }
@@ -370,6 +359,7 @@ sub new_from_node
             $type eq 'PPI::Token::Comment' )
         {
         my $content = $cursor -> content ;
+        last if ( $content =~ /~~~~~~~~~~~~/ ) ;
         push @doku, $content ;
         $cursor = $cursor -> previous_sibling ;
         $type = ref $cursor ;

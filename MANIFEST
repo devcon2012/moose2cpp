@@ -3,6 +3,8 @@ bin/moose2cpp.pl
 Changes
 CODE_OF_CONDUCT.md
 CONTRIBUTING.md
+doxy/.gitignore
+doxy/Doxyfile
 lib/PPI/Transform/CPP.pm
 lib/PPI/Transform/CPP/_Comment2Doxy.pm
 lib/PPI/Transform/CPP/Class.pm
@@ -14,6 +16,7 @@ LICENSE
 Makefile.PL
 README.md
 t/testBasic.t
+t/testEvil.t
 t/testMember.t
 t/testMethod.t
 t/testRole.t

@@ -343,10 +343,11 @@ sub as_cpp
     my $ret = '' ;
 
     my $name = $self -> name ;
+    $name =~ s/\:\:/_/g ;
 
     foreach my $include ( $self -> all_includes )
         {
-        $ret .= "#include '$include'\n" ;
+        $ret .= "#include \"$include\"\n" ;
         }
 
     my $parents = '' ;
@@ -365,6 +366,7 @@ sub as_cpp
         $ret .= $member -> as_cpp ($indent) 
             if ( $member -> is_private );
         }
+    $ret .= "\n" ;
 
     foreach my $method ( $self -> all_methods )
         {
@@ -378,6 +380,7 @@ sub as_cpp
         $ret .= $member -> as_cpp ($indent)
             if ( ! $member -> is_private );
         }
+    $ret .= "\n" ;
 
     foreach my $method ( $self -> all_methods )
         {

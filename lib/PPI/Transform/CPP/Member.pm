@@ -28,9 +28,23 @@ has 'is_static' => (
     default         => 0
 ) ;
 
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Methods
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+sub ThrowException
+    {
+    my ($package, $info_msg, $node) = @_ ;
+
+    my $msg = "Error $info_msg in $package" ;
+    if ( $node )
+        {
+        my ( $line, $rowchar, $col, $logical_line, $logical_file_name ) = $node -> line_number ;
+        $msg .= " (Line $line in $logical_file_name)" ;
+        }
+    die $msg ;
+    }
 
 # --------------------------------------------------------------------------------------------------------------------
 # _map_moose_type - map moose isa to a type
@@ -110,20 +124,18 @@ sub new_from_node
     $m -> doku_add ($cstr) if ( $cstr ) ;
 
     my $l = $node -> find_first ( 'PPI::Structure::List' ) ;
-    # print STDERR "LLL " . Dumper ($l) ;
     if ( $l )
         {
         my $e = $l -> find_first ( 'PPI::Statement::Expression' ) ;
-        # print STDERR "EEE " . Dumper ($e) ;
         if ( $e )
             {
             my $cursor = $e -> child ( 0 ) ;
             while ( $cursor )
                 {
+                ThrowException( __PACKAGE__, 'cannot parse has', $cursor) if ( ! $cursor -> can ('literal') ) ;
                 my $entry = $cursor -> literal ;
-                #print STDERR "Entry $entry\n" ;
                 $cursor = $cursor -> snext_sibling ; # must be =>
-                $cursor = $cursor -> snext_sibling ;
+                $cursor = $cursor -> snext_sibling ; # 'value' node
                 my $val = $cursor -> {content} ;
 
                 $val = $cursor -> string 
@@ -150,11 +162,16 @@ sub new_from_node
                     $m -> type ( $m -> _map_moose_type ( $val ) ) ;
                     }
 
-                $cursor = $cursor -> snext_sibling 
-                    if ($cursor) ; # must be ,
-
-                $cursor = $cursor -> snext_sibling 
-                    if ($cursor ) ;
+                while ( $cursor )
+                    {
+                    $cursor = $cursor -> snext_sibling ;
+                    my $c = $cursor ? $cursor -> {content} : '' ;
+                    if ( ('PPI::Token::Operator' eq ref $cursor) && ($c eq ',') )
+                        {
+                        $cursor = $cursor -> snext_sibling ;
+                        last ;
+                        }
+                    }
                 }
             }
         }

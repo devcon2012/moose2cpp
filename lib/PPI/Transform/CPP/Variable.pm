@@ -21,18 +21,26 @@ extends 'PPI::Transform::CPP::Symbol' ;
 
 # 
 has 'type' => (
-    documentation   => '',
+    documentation   => 'variable type, derived from isa (members) or !$%@ (method arguments)',
     is              => 'rw',
     isa             => 'Str',
     default         => ''
 ) ;
-
+ 
 # 
 has 'is_const' => (
-    documentation   => '',
+    documentation   => 'derived from is ->ro (members) or listed in out (method arguments)',
     is              => 'rw',
     isa             => 'Bool',
     default         => 1
+) ;
+
+# 
+has 'is_optional' => (
+    documentation   => 'set true for [] denoted method arguments',
+    is              => 'rw',
+    isa             => 'Bool',
+    default         => 0,
 ) ;
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -40,7 +48,7 @@ has 'is_const' => (
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # --------------------------------------------------------------------------------------------------------------------
-# as_cpp - 
+# as_cpp - render variable as cpp
 #
 #
 #
@@ -50,13 +58,17 @@ sub as_cpp
     my $ret = '' ;
 
     my $type = $self -> type ;
-    if (  $self -> is_const )
+    if ( $self -> is_const )
         {
         $ret .= "const $type " . $self -> name  ;
         }
     else
         {
         $ret .= "$type & " . $self -> name  ;
+        }
+    if ( $self -> is_optional )
+        {
+        $ret .= ' = "default" ' ;
         }
     return $ret ;
     }
@@ -86,6 +98,10 @@ sub set_type
     elsif ( $type eq '<')
         {
         $self -> type ( 'OBJECT' );
+        }
+    elsif ( $type eq '!')
+        {
+        $self -> type ( 'BOOLEAN' );
         }
     else
         {

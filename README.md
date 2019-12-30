@@ -22,6 +22,11 @@ This module requires these other modules and libraries:
 
   Moose
 
+TODO
+  * link transformation: generation of markdown links
+      [text](http://example.net/ "Link title")
+    from tags in comments like [[wiki]]
+
 COPYRIGHT AND LICENCE
 
 Copyright (C) 2019 by Klaus Ramstöck
