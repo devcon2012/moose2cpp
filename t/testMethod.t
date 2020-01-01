@@ -4,7 +4,7 @@
 use strict ;
 use warnings ;
 
-use Test::More tests => 41 ;
+use Test::More tests => 42 ;
 
 use Try::Tiny ;
 use Data::Dumper ;
@@ -51,7 +51,7 @@ sub fasel
 #
 sub fasel2
     {
-    my ($self) = @_ ;
+    my ($class, $bla) = @_ ; # static (class) method
     }
 
 # --------------------------------------------------------------------------------------------------------------------
@@ -144,6 +144,7 @@ ok ( 3 == scalar @$func, '3 methods' ) ;
     my $f = $func -> [1] ;
     #print STDERR Dumper ($f) ;
     ok ( $f -> name eq 'fasel2',    '  f2 name ok' ) ;
+    ok (   $f -> is_static,         '    is static' ) ;
     ok ( ! $f -> is_undocumented,   '    is documented' ) ;
     ok ( $f -> type eq 'LIST',      '    return LIST' ) ;
     }

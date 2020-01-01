@@ -4,7 +4,7 @@
 use strict ;
 use warnings ;
 
-use Test::More tests => 34 ;
+use Test::More tests => 55 ;
 
 use Try::Tiny ;
 use Data::Dumper ;
@@ -22,6 +22,13 @@ use strict ;
 
 use Moose ;
 extends 'SAMPLE_PARENT' ;
+
+# scalar example
+use constant scalar => 1 ;
+# array constant example
+use constant array => ( 1, 2, 3 ) ;
+#hashref constant example
+use constant hash => { a => 1, b => 2 } ;
 
 has '_bla' => 
     (
@@ -63,10 +70,47 @@ ok ( 'SAMPLE_PARENT' eq $inc -> [2], '  parent include ok' ) ;
 
 my $var = $c -> members ;
 # print STDERR Dumper ($var) ;
-ok ( 2 == scalar @$var, '2 members' ) ;
+ok ( 5 == scalar @$var, '5 members' ) ;
+
     {
     my $v = $var -> [0] ;
-    ok (   $v -> name eq '_bla',   '1 _bla:  name ok' ) ;
+    #print STDERR Dumper ($v) ;
+    ok (   $v -> name eq 'scalar',              '0 scalar:  name ok' ) ;
+    ok (   $v -> type eq 'CONSTANT_SCALAR',     '  type ok' ) ;
+    ok ( ! $v -> is_private,                    '  private' ) ;
+    ok ( ! $v -> is_undocumented,               '  documented' ) ;
+    ok (   $v -> is_static,                     '  static' ) ;
+    ok (   $v -> is_const,                      '  const' ) ;
+    like ( $v -> doku, qr/scalar example/,      '  docstr ok') ;
+    }
+
+    {
+    my $v = $var -> [1] ;
+    #print STDERR Dumper ($v) ;
+    ok (   $v -> name eq 'array',               '1 array:  name ok' ) ;
+    ok (   $v -> type eq 'CONSTANT_ARRAYREF',   '  type ok' ) ;
+    ok ( ! $v -> is_private,                    '  private' ) ;
+    ok ( ! $v -> is_undocumented,               '  documented' ) ;
+    ok (   $v -> is_static,                     '  static' ) ;
+    ok (   $v -> is_const,                      '  const' ) ;
+    like ( $v -> doku, qr/array constant example/,      '  docstr ok') ;
+    }
+
+    {
+    my $v = $var -> [2] ;
+    #print STDERR Dumper ($v) ;
+    ok (   $v -> name eq 'hash',             '2 hash:  name ok' ) ;
+    ok (   $v -> type eq 'CONSTANT_HASHREF', '  type ok' ) ;
+    ok ( ! $v -> is_private,                 '  private' ) ;
+    ok ( ! $v -> is_undocumented,            '  documented' ) ;
+    ok (   $v -> is_static,                  '  static' ) ;
+    ok (   $v -> is_const,                   '  const' ) ;
+    like ( $v -> doku, qr/hashref constant example/,  '  docstr ok') ;
+    }
+
+    {
+    my $v = $var -> [3] ;
+    ok (   $v -> name eq '_bla',   '3 _bla:  name ok' ) ;
     ok (   $v -> type eq 'STR',    '  type ok' ) ;
     ok (   $v -> is_private,       '  private' ) ;
     ok (   $v -> is_undocumented,  '  not documented' ) ;
@@ -75,9 +119,10 @@ ok ( 2 == scalar @$var, '2 members' ) ;
     like ( $v -> doku, qr/lazy/,         '  lazyness documented') ;
     like ( $v -> doku, qr/_bla_builder/, '  builder documented') ;
     }
+
     {
-    my $v = $var -> [1] ;
-    ok (   $v -> name eq 'bla',    '1 bla:  name ok' ) ;
+    my $v = $var -> [4] ;
+    ok (   $v -> name eq 'bla',    '4 bla:  name ok' ) ;
     ok (   $v -> type eq 'INT',    '  type ok' ) ;
     ok ( ! $v -> is_private,       '  not private' ) ;
     ok (   $v -> is_undocumented,  '  not documented' ) ;

@@ -20,14 +20,6 @@ extends 'PPI::Transform::CPP::Variable' ;
 # Members
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-# 
-has 'is_static' => (
-    documentation   => '',
-    is              => 'rw',
-    isa             => 'Bool',
-    default         => 0
-) ;
-
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Methods
@@ -82,14 +74,14 @@ sub as_cpp
     my $tab = ' ' x $indent ;
 
     my $ret = '' ; 
-    $ret .= "$tab/// \@var $name $doku\n" if ( $doku ) ;
+    $ret .= "$tab/// $doku\n" if ( $doku ) ;
     $ret .= "$tab$static$type$const$name;\n" ;
     return $ret ;
     }
 
 
 # -----------------------------------------------------------------------------
-# new_from_node - class factory method
+# new_from_node - class factory method for has 'xx' => ( ...)
 #
 # in    <node>  use node 
 #
@@ -106,6 +98,8 @@ sub new_from_node
         if ( ref $c eq 'PPI::Token::Comment' )
             {
             my $txt = $c -> {content} ;
+            next if ( $txt =~ /~~~~~~~~~~~~~~~~~~~~~/) ;
+            next if ( $txt =~ /---------------------/) ;
             $txt =~ s/\#//;
             $txt =~ s/^\s+//;
             $txt =~ s/\n//g;
@@ -180,6 +174,71 @@ sub new_from_node
     }
 
 
+
+# -----------------------------------------------------------------------------
+# new_const_from_node - class factory method for use constant ... members
+#
+# in    <node>  use constant ...node 
+#
+#
+
+sub new_const_from_node 
+    {
+    my ( $class, $node ) = @_ ; 
+
+    #!dump( $self -> _Dumper ($node) )!
+
+    my $cstr = '' ;
+    my $c = $node -> previous_sibling ;
+    while ( $c )
+        {
+        if ( ref $c eq 'PPI::Token::Comment' )
+            {
+            my $txt = $c -> {content} ;
+            next if ( $txt =~ /~~~~~~~~~~~~~~~~~~~~~/) ;
+            next if ( $txt =~ /---------------------/) ;
+            $txt =~ s/\#//;
+            $txt =~ s/^\s+//;
+            $txt =~ s/\n//g;
+            $cstr = " $cstr" if ( $cstr && $txt ) ;
+            $cstr = "$txt$cstr" if ( $txt ) ;
+            $c = $c -> previous_sibling ;
+            }
+        else 
+            {
+            $c = undef ;
+            }
+        }
+
+    my $name_node = $node -> child(0) -> snext_sibling -> snext_sibling ;
+    my $name = $name_node -> content ;
+    my $m = PPI::Transform::CPP::Member -> new (name => $name ) ;
+
+    $m -> doku_add ($cstr) if ( $cstr ) ;
+    $m -> is_const ( 1 ) ;
+    $m -> is_static ( 1 ) ;
+
+    my $type_node = $name_node -> snext_sibling -> snext_sibling ;
+
+    if ( ref $type_node eq 'PPI::Structure::List' )
+        {
+        $m -> type ( 'CONSTANT_ARRAYREF' ) ;
+        }
+    elsif ( ref $type_node eq 'PPI::Structure::Constructor' )
+        {
+        $m -> type ( 'CONSTANT_HASHREF' ) ;
+        }
+    else
+        {
+        $m -> type ( 'CONSTANT_SCALAR' ) ;
+        }
+
+
+    #print STDERR "new_from_node " . Dumper ($m) ;
+    return $m;
+    }
+
+
 __PACKAGE__ -> meta -> make_immutable ;
 
 1;
@@ -195,7 +254,7 @@ my $m1 = PPI::Transform::CPP::Member -> new ( name => 'member_variable' ) ;
 
 my $node = PPI::Transform::... ;
 my $m2 = PPI::Transform::CPP::Member -> new_from_node ( $node ) ;
-print "declared as class_has " if ( $m2 -> is_static ) ;
+print "declared as use constant / class_has " if ( $m2 -> is_static ) ;
 print "declared as private " if ( $m2 -> is_private ) ;
 
 =head1 COPYRIGHT AND LICENSE

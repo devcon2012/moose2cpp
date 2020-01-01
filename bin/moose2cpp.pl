@@ -122,15 +122,18 @@ foreach my $file_name ( @filenames )
     close ( $outfh ) if ( $outfh ) ;
     }
 
-my $default_doxy = "$opt_basedir/Doxyfile" ;
-if ( -f $default_doxy )
+if ( ! $opt_out )
     {
-    logger("Running doxygen in $opt_basedir") ;
-    system("cd '$opt_basedir' ; doxygen Doxyfile") ;
+    my $default_doxy = "$opt_basedir/Doxyfile" ;
+    if ( -f $default_doxy )
+        {
+        logger("Running doxygen in $opt_basedir") ;
+        system("cd '$opt_basedir' ; doxygen Doxyfile") ;
+        }
+    else
+        {
+        logger("No $default_doxy") ;
+        }
     }
-else
-    {
-    logger("No $default_doxy") ;
-    }
-
+    
 logger("End.") ;

@@ -65,7 +65,7 @@ has 'arguments' => (
 # --------------------------------------------------------------------------------------------------------------------
 # add_return_type_doku - combine plaintext_doku and arguments
 #
-# in $txt           Docu text to add
+# in $doku          Docu text to add
 #    [$is_auto]     if true, symbol is not set to documented
 #
 #
@@ -295,6 +295,7 @@ sub as_cpp
     my $tab     = ' ' x $indent ;
     my $ret     = '' ;
     my $name    = $self -> name ; 
+    my $static  = $self -> is_static ? 'static ' : '' ; 
     if ( $self -> is_virtual )
         {
         return "${tab}virtual void ${name}() = 0;";
@@ -304,7 +305,7 @@ sub as_cpp
     foreach my $arg ( $self -> all_arguments )
         {
         push @alist, $arg -> as_cpp ;
-        push @dlist, ' @var ' . $arg->name . ' ' . $arg -> doku . "\n" ;
+        push @dlist, ' @param ' . $arg->name . ' ' . $arg -> doku . "\n" ;
         }
     my $alist = ( join ',',          @alist ) || '';
     my $dlist = ( join $tab . '///', @dlist ) || '';
@@ -321,7 +322,7 @@ sub as_cpp
     $ret .= $tab . "/// \@return $doku\n"  if ( $doku ) ;
 
     $ret .= $tab . '///' . $dlist if ($dlist) ;
-    $ret .= $tab . $self -> type . ' ' . $self -> name . "($alist);\n\n" ;
+    $ret .= $tab . $static . $self -> type . ' ' . $self -> name . "($alist);\n\n" ;
 
     return $ret ;
     }
@@ -375,31 +376,37 @@ sub new_from_node
         }
 
     my $variables = $node      -> find_first('PPI::Statement::Variable') ;
-    $variables    = $variables -> find_first('PPI::Structure::List') ;
     if ( $variables )
         {
-        $variables    = ($variables -> children)[0] ;
-
-        my @symbols ;
-        while ( 1 )
+        $variables    = $variables -> find_first('PPI::Structure::List') ;
+        if ( $variables )
             {
-            if ( 'PPI::Token::Symbol' eq ref $variables )
+            $variables    = ($variables -> children)[0] ;
+            my @symbols ;
+            while ( 1 )
                 {
-                push @symbols, $variables -> symbol ;
+                if ( 'PPI::Token::Symbol' eq ref $variables )
+                    {
+                    push @symbols, $variables -> symbol ;
+                    }
+                $variables = $variables -> next_sibling ;
+                last if ( ! $variables ) ;
                 }
-            $variables = $variables -> next_sibling ;
-            last if ( ! $variables ) ;
-            }
-        my $ml = $node -> find_first('PPI::Statement::Variable') -> find_first('PPI::Statement::Expression');
-        for (my $m = $ml -> child(0);
-                $m;
-                $m = $m -> next_sibling ) 
-            {
-            if ( 'PPI::Token::Symbol' eq ref $m
-                && '$self' ne $m -> content )
+            my $ml = $node -> find_first('PPI::Statement::Variable') -> find_first('PPI::Statement::Expression');
+            for (my $m = $ml -> child(0);
+                    $m;
+                    $m = $m -> next_sibling ) 
                 {
-                my ($name) = $m -> content =~ /^.(.+)/ ;
-                $method -> add_argument ( PPI::Transform::CPP::Variable -> new ( name => $name ) ) ;
+                if ( 'PPI::Token::Symbol' eq ref $m
+                    && $m -> content !~ /^\$(class)|(self)$/ )
+                    {
+                    my ($name) = $m -> content =~ /^.(.+)/ ;
+                    $method -> add_argument ( PPI::Transform::CPP::Variable -> new ( name => $name ) ) ;
+                    }
+                if ( $m -> content =~ /\$class$/)
+                    {
+                    $method -> is_static ( 1 ) ;
+                    }
                 }
             }
         }

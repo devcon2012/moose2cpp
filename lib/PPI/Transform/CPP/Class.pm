@@ -20,20 +20,39 @@ use PPI::Transform::CPP::Member ;
 extends 'PPI::Transform::CPP::Symbol' ;
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# constants
+# Constants
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+# map important pragmas like strict to pseudo-includes
 use constant module_map =>
-    { # map pragmas to sys/...
-    'strict'        => 'sys/strict' ,
-    'warnings'      => 'sys/warnings' ,
-    'utf8'          => 'sys/utf8' ,
+    { 
+    'strict'        => 'perl/strict' ,
+    } ;
+
+# ignore these use ... statements
+use constant ignored_module_map =>
+    {
+    'warnings'      => 1 ,
+    'utf8'          => 1 ,
+    } ;
+
+# treat these use ... statements special
+use constant special_module_map =>
+    { 
+    'constant'      => 'add_constant' ,
     } ;
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Members
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 
+
+has 'source_file' => (
+    documentation   => 'source file',
+    is              => 'rw',
+    isa             => 'Str',
+    default         => '' ,
+) ;
+
 has 'parents' => (
     documentation   => 'parent class(es)',
     is              => 'rw',
@@ -98,6 +117,26 @@ has 'methods' => (
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # -----------------------------------------------------------------------------
+# add_constant - add constant member from node
+#
+# in    $node 
+#
+# ret  
+
+sub add_constant
+    {
+    my ( $self, $node ) = @_ ;
+
+    # $self -> _Dumper ( $node ) ;
+
+    my $const_member = PPI::Transform::CPP::Member -> new_const_from_node ($node) ;
+    $self -> add_member ( $const_member ) ;
+    #print STDERR Dumper ($const_member) ;
+
+    return ;
+    }
+
+# -----------------------------------------------------------------------------
 # ignore_module - return true for use we ignore
 #
 # in    $module 
@@ -108,7 +147,7 @@ sub ignore_module
     {
     my ( $self, $module ) = @_ ;
 
-    return ;
+    return $self -> ignored_module_map -> {$module};
     }
 
 # -----------------------------------------------------------------------------
@@ -139,6 +178,8 @@ sub add_parent_from_node
     {
     my ( $self, $node ) = @_ ;
 
+    # $self -> _Dumper ( $node ) ;
+
     for ( my $i=1; $i < $node -> elements; $i++ )
         {
         my $c = $node -> child ($i) ;
@@ -166,6 +207,8 @@ sub add_role_from_node
     {
     my ( $self, $node ) = @_ ;
 
+    # $self -> _Dumper ( $node ) ;
+
     for ( my $i=1; $i < $node -> elements; $i++ )
         {
         my $c = $node -> child ($i) ;
@@ -189,6 +232,8 @@ sub add_role_from_node
 sub add_virtual_from_node
     {
     my ( $self, $node ) = @_ ;
+
+    # $self -> _Dumper ( $node ) ;
 
     for ( my $i=1; $i < $node -> elements; $i++ )
         {
@@ -216,6 +261,8 @@ sub add_virtual_from_node
 sub add_member_from_node
     {
     my ( $self, $node ) = @_ ;
+
+    # $self -> _Dumper ( $node ) ;
 
     my $m = PPI::Transform::CPP::Member -> new_from_node ( $node ) ;
     $self -> add_member ( $m ) ;
@@ -253,9 +300,17 @@ sub add_include_node
 
     #!dump($node->module)!
 
-    $self -> add_include ( $self -> map_module2include( $node -> module ) ) 
-        if ( ! $self -> ignore_module ( $node -> module ) );
-
+    my $module      = $node -> module ;
+    my $special     = $self -> special_module_map -> { $module } ;
+    if ( $special )
+        {
+        $self -> $special ( $node ) ;
+        }
+    else
+        {
+        $self -> add_include ( $self -> map_module2include( $node -> module ) ) 
+            if ( ! $self -> ignore_module ( $node -> module ) );
+        }
     return ;
     }
 
@@ -340,7 +395,10 @@ sub as_cpp
     {
     my ( $self ) = @_ ;
 
-    my $ret = '' ;
+    my $ret = '/// @file '  . $self -> source_file . "\n" ;
+    $ret   .= '/// @class ' . $self -> name . " short dummy brief info\n" ;
+
+    $ret    .= "\n\n" ;
 
     my $name = $self -> name ;
     $name =~ s/\:\:/_/g ;
@@ -348,12 +406,16 @@ sub as_cpp
     foreach my $include ( $self -> all_includes )
         {
         $ret .= "#include \"$include\"\n" ;
+        $ret =~ s/\:\:/_/g ;
         }
+
+    $ret    .= "\n\n" ;
 
     my $parents = '' ;
     if ( $self -> count_parents )
         {
-        $parents = 'public ' . join (',', $self -> all_parents ) ;
+        $parents = ': public ' . join (', public ', $self -> all_parents ) ;
+        $parents =~ s/\:\:/_/g ;
         }
 
     my $indent = 8 ;
@@ -389,6 +451,8 @@ sub as_cpp
         }
 
     $ret .= "    };\n " ;
+
+    $ret    .= "\n\n" ;
     
     return $ret ;
     }

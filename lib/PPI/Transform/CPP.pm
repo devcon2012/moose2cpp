@@ -161,6 +161,7 @@ sub transform
     while ( 1 )
         {
         my $class = $self -> package2class ( $package ) ;
+        $class -> source_file ( $source ) ;
         push @$classes, $class ;
         while ( 1 )
             {

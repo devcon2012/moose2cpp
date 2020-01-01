@@ -88,9 +88,9 @@ sub CritiqueModules
 sub PrintInfo
     {
     print "Run some tests verbose:\n" ;
-    print "make test TEST_VERBOSE=1 TEST_FILES='t/testInfoBites.t'\n" ;
+    print "make test TEST_VERBOSE=1 TEST_FILES='t/testXXX.t'\n" ;
     print "Run one test for debugging:\n" ;
-    print "make testdb TEST_FILE=t/testInfoBites.t\n" ;
+    print "make testdb TEST_FILE=t/testXXX.t\n" ;
     }
 
 WriteMakefile(
